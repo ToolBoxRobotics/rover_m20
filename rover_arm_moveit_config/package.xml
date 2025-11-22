@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<package format="2">
+<name>rover_arm_moveit_config</name>
+<version>0.0.1</version>
+<description>MoveIt config for 5-DOF rover arm</description>
+<maintainer email="you@example.com">You</maintainer>
+<license>BSD</license>
+<depend>moveit_core</depend>
+<depend>moveit_ros_planning_interface</depend>
+<depend>roscpp</depend>
+<depend>rospy</depend>
+<depend>std_msgs</depend>
+</package>

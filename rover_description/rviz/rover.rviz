@@ -1,0 +1,108 @@
+# RViz configuration for six-wheel rover with 5-DOF arm
+# Save as: rover.rviz
+
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+  - Class: rviz/Selection
+    Name: Selection
+  - Class: rviz/Tool Properties
+    Name: Tool Properties
+  - Class: rviz/Views
+    Name: Views
+
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Name: Grid
+      Class: rviz/Grid
+      Enabled: true
+      Line Style: Lines
+      Color: 160; 160; 160
+      Plane: XY
+      Cell Size: 1
+
+    - Name: TF
+      Class: rviz/TF
+      Enabled: true
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+
+    - Name: RobotModel
+      Class: rviz/RobotModel
+      Enabled: true
+      Robot Description: robot_description
+      Visual Enabled: true
+      Collision Enabled: false
+      Alpha: 1.0
+
+    - Name: JointState
+      Class: rviz/JointState
+      Enabled: true
+
+    - Name: Wheel Rotation
+      Class: rviz/TF
+      Enabled: true
+      Frames:
+        wheel_front_left_joint: true
+        wheel_front_right_joint: true
+        wheel_middle_left_joint: true
+        wheel_middle_right_joint: true
+        wheel_rear_left_joint: true
+        wheel_rear_right_joint: true
+      Show Axes: true
+      Show Arrows: false
+
+    - Name: Arm Joints
+      Class: rviz/TF
+      Enabled: true
+      Frames:
+        arm_joint_1: true
+        arm_joint_2: true
+        arm_joint_3: true
+        arm_joint_4: true
+        arm_joint_5: true
+      Show Axes: true
+      Show Arrows: false
+
+    - Name: Camera
+      Class: rviz/Camera
+      Enabled: true
+      Image Topic: /kinect/rgb/image_raw
+      Transport Hint: raw
+      Alpha: 1.0
+
+    - Name: DepthCloud
+      Class: rviz/DepthCloud
+      Enabled: true
+      Depth Map Topic: /kinect/depth/image_raw
+      Color Image Topic: /kinect/rgb/image_raw
+      Auto-Size: true
+
+    - Name: IMU
+      Class: rviz/IMU
+      Enabled: true
+      Topic: /imu/data
+      Show Axes: true
+      Show Orientation: true
+
+    - Name: GPS
+      Class: rviz/Point
+      Enabled: true
+      Topic: /gps/fix
+      Size: 0.3
+      Color: 255; 255; 0
+
+Tools:
+  - Class: rviz/Interact
+  - Class: rviz/MoveCamera
+  - Class: rviz/Select
+  - Class: rviz/FocusCamera
+
+Views:
+  Current:
+    Class: rviz/Orbit
+    Distance: 8.0
+    Pitch: 0.7
+    Yaw: 0.5

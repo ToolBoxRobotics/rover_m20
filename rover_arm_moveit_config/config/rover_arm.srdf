@@ -1,0 +1,22 @@
+<robot name="six_wheel_rover">
+<group name="arm">
+<chain base_link="arm_base_link" tip_link="arm_ee_link">
+<link>arm_base_link</link>
+<link>arm_link_1</link>
+<link>arm_link_2</link>
+<link>arm_link_3</link>
+<link>arm_link_4</link>
+<link>arm_link_5</link>
+<link>arm_ee_link</link>
+</chain>
+</group>
+
+
+<group_state name="home" group="arm">
+<joint name="arm_joint_1">0.0</joint>
+<joint name="arm_joint_2">0.0</joint>
+<joint name="arm_joint_3">0.0</joint>
+<joint name="arm_joint_4">0.0</joint>
+<joint name="arm_joint_5">0.0</joint>
+</group_state>
+</robot>

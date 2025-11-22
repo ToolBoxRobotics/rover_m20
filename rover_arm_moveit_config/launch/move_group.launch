@@ -1,0 +1,10 @@
+<launch>
+<arg name="robot_description" default="/robot_description"/>
+<arg name="use_sim_time" default="true"/>
+
+
+<!-- MoveIt planning execution -->
+<include file="$(find moveit_ros_move_group)/launch/move_group.launch.xml">
+<arg name="use_sim_time" value="$(arg use_sim_time)"/>
+</include>
+</launch>

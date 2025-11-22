@@ -1,0 +1,490 @@
+<?xml version="1.0"?>
+<!-- six_wheel_rover_with_arm.urdf.xacro
+     Full XACRO for a six-wheeled rover with 4-corner steering and a 5-DOF arm.
+     - Wheel names: wheel_fl, wheel_fr, wheel_ml, wheel_mr, wheel_rl, wheel_rr
+     - Steering joints: steer_fl, steer_fr, steer_rl, steer_rr
+     - 5-DOF arm attached to front_link: joint_arm_1 .. joint_arm_5
+     - Includes inertials, collision and visual primitives (replace with meshes if available)
+     - Contains gazebo_ros_control plugin and sensor placeholders (Kinect, IMU, GPS)
+-->
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="six_wheel_rover">
+
+  <!-- ============================================================= -->
+  <!-- Properties / parameters (tune these to match real hardware)   -->
+  <!-- ============================================================= -->
+
+  <!-- Basic geometry -->
+  <xacro:property name="wheel_radius" value="0.083"/> <!-- meters ~ 83 mm radius (example) -->
+  <xacro:property name="wheel_width" value="0.04"/>
+  <xacro:property name="wheel_mass" value="0.75"/>
+
+  <xacro:property name="chassis_length" value="0.9"/>
+  <xacro:property name="chassis_width" value="0.6"/>
+  <xacro:property name="chassis_height" value="0.18"/>
+  <xacro:property name="chassis_mass" value="18.0"/>
+
+  <!-- steering servo properties -->
+  <xacro:property name="steer_mass" value="0.12"/>
+
+  <!-- arm properties -->
+  <xacro:property name="arm_base_height" value="0.12"/>
+  <xacro:property name="arm_link_mass" value="0.5"/>
+
+  <!-- inertial guesses for wheel / links -->
+  <xacro:property name="wheel_ixx" value="0.001"/>
+  <xacro:property name="wheel_iyy" value="0.002"/>
+  <xacro:property name="wheel_izz" value="0.001"/>
+
+  <!-- names for joints arrays -->
+  <xacro:property name="wheel_joints" value="[wheel_fl_hinge, wheel_fr_hinge, wheel_ml_hinge, wheel_mr_hinge, wheel_rl_hinge, wheel_rr_hinge]"/>
+
+
+  <!-- ============================================================= -->
+  <!-- Base link (chassis) -->
+  <!-- ============================================================= -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 ${chassis_height/2}" rpy="0 0 0"/>
+      <mass value="${chassis_mass}"/>
+      <!-- approximate box inertia: I = 1/12 m (h^2 + d^2) etc. Use simple diagonal values -->
+      <inertia ixx="0.8" ixy="0.0" ixz="0.0" iyy="1.2" iyz="0.0" izz="1.5"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 ${chassis_height/2}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${chassis_height/2}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- A small front link to mount arm and camera -->
+  <link name="front_link">
+    <visual>
+      <origin xyz="${chassis_length/2} 0 0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.2 0.2 0.02"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="base_to_front" type="fixed">
+    <parent link="base_link"/>
+    <child link="front_link"/>
+    <origin xyz="${chassis_length/2} 0 0.0" rpy="0 0 0"/>
+  </joint>
+
+
+  <!-- ============================================================= -->
+  <!-- Steering assemblies (four corners) and six wheels             -->
+  <!-- We model steering as a revolute joint around Z on a small steer_link -->
+  <!-- Wheel hinge is revolute around Y (rolling axis) parented to steer_link (for corners) or base_link (for middles) -->
+  <!-- ============================================================= -->
+
+  <!-- helper macro: steering corner -->
+  <xacro:macro name="steer_corner" params="prefix x y z">
+    <!-- steer link -->
+    <link name="${prefix}_steer_link">
+      <inertial>
+        <mass value="${steer_mass}"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.02" radius="0.03"/>
+        </geometry>
+      </visual>
+    </link>
+
+    <joint name="${prefix}_steer_joint" type="revolute">
+      <parent link="base_link"/>
+      <child link="${prefix}_steer_link"/>
+      <origin xyz="${x} ${y} ${z}" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="-1.5708" upper="1.5708" effort="10.0" velocity="1.0"/>
+    </joint>
+
+    <!-- wheel link -->
+    <link name="${prefix}_wheel_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="${wheel_mass}"/>
+        <inertia ixx="${wheel_ixx}" ixy="0" ixz="0" iyy="${wheel_iyy}" iyz="0" izz="${wheel_izz}"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="${wheel_width}" radius="${wheel_radius}"/>
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="${wheel_width}" radius="${wheel_radius}"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="${prefix}_wheel_hinge" type="continuous">
+      <parent link="${prefix}_steer_link"/>
+      <child link="${prefix}_wheel_link"/>
+      <!-- wheel offset: center under the steer link -->
+      <origin xyz="0 0 -${wheel_radius}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+    </joint>
+
+    <!-- transmission for wheel -->
+    <transmission name="${prefix}_wheel_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}_wheel_hinge"/>
+      <actuator name="${prefix}_wheel_motor">
+        <hardwareInterface>velocity</hardwareInterface>
+      </actuator>
+    </transmission>
+
+    <!-- transmission for steering -->
+    <transmission name="${prefix}_steer_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}_steer_joint"/>
+      <actuator name="${prefix}_steer_servo">
+        <hardwareInterface>position</hardwareInterface>
+      </actuator>
+    </transmission>
+
+  </xacro:macro>
+
+  <!-- positions for the corners and middles relative to base_link -->
+  <!-- Front-left -->
+  <xacro:steer_corner prefix="fl" x="${chassis_length/2 - 0.05}" y="${chassis_width/2 - 0.05}" z="0.02"/>
+  <!-- Front-right -->
+  <xacro:steer_corner prefix="fr" x="${chassis_length/2 - 0.05}" y="-${chassis_width/2 - 0.05}" z="0.02"/>
+
+  <!-- Middle-left (no steering; attach wheel directly to base_link) -->
+  <link name="ml_wheel_link">
+    <inertial>
+      <mass value="${wheel_mass}"/>
+      <inertia ixx="${wheel_ixx}" ixy="0" ixz="0" iyy="${wheel_iyy}" iyz="0" izz="${wheel_izz}"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="${wheel_width}" radius="${wheel_radius}"/>
+      </geometry>
+    </visual>
+  </link>
+  <joint name="ml_wheel_hinge" type="continuous">
+    <parent link="base_link"/>
+    <child link="ml_wheel_link"/>
+    <origin xyz="0 ${chassis_width/2 - 0.05} -${wheel_radius}" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="20" velocity="20"/>
+  </joint>
+  <transmission name="ml_wheel_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="ml_wheel_hinge"/>
+    <actuator name="ml_wheel_motor">
+      <hardwareInterface>velocity</hardwareInterface>
+    </actuator>
+  </transmission>
+
+  <!-- Middle-right -->
+  <link name="mr_wheel_link">
+    <inertial>
+      <mass value="${wheel_mass}"/>
+      <inertia ixx="${wheel_ixx}" ixy="0" ixz="0" iyy="${wheel_iyy}" iyz="0" izz="${wheel_izz}"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="${wheel_width}" radius="${wheel_radius}"/>
+      </geometry>
+    </visual>
+  </link>
+  <joint name="mr_wheel_hinge" type="continuous">
+    <parent link="base_link"/>
+    <child link="mr_wheel_link"/>
+    <origin xyz="0 -${chassis_width/2 - 0.05} -${wheel_radius}" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+  <transmission name="mr_wheel_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="mr_wheel_hinge"/>
+    <actuator name="mr_wheel_motor">
+      <hardwareInterface>velocity</hardwareInterface>
+    </actuator>
+  </transmission>
+
+  <!-- Rear-left and Rear-right steering corners -->
+  <xacro:steer_corner prefix="rl" x="-${chassis_length/2 - 0.05}" y="${chassis_width/2 - 0.05}" z="0.02"/>
+  <xacro:steer_corner prefix="rr" x="-${chassis_length/2 - 0.05}" y="-${chassis_width/2 - 0.05}" z="0.02"/>
+
+
+  <!-- ============================================================= -->
+  <!-- 5-DOF arm mounted on front_link
+        joints: arm_joint_1 .. arm_joint_5
+        joint_1: base rotate (yaw)
+        joint_2: shoulder (pitch)
+        joint_3: elbow (pitch)
+        joint_4: wrist_pitch
+        joint_5: wrist_roll
+  -->
+  <!-- ============================================================= -->
+
+  <!-- arm base link -->
+  <link name="arm_base_link">
+    <inertial>
+      <mass value="1.2"/>
+      <origin xyz="0 0 ${arm_base_height/2}" rpy="0 0 0"/>
+      <inertia ixx="0.02" ixy="0" ixz="0" iyy="0.02" iyz="0" izz="0.02"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 ${arm_base_height/2}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="${arm_base_height}" radius="0.06"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="front_to_arm_base" type="fixed">
+    <parent link="front_link"/>
+    <child link="arm_base_link"/>
+    <origin xyz="0 0 0.06" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Joint 1: base yaw -->
+  <link name="arm_link_1" />
+  <joint name="arm_joint_1" type="revolute">
+    <parent link="arm_base_link"/>
+    <child link="arm_link_1"/>
+    <origin xyz="0 0 ${arm_base_height}" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.1416" upper="3.1416" effort="50" velocity="1.0"/>
+  </joint>
+
+  <!-- Joint 2: shoulder -->
+  <link name="arm_link_2">
+    <visual>
+      <origin xyz="0 0 0.12" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.02 0.24"/>
+      </geometry>
+    </visual>
+  </link>
+  <joint name="arm_joint_2" type="revolute">
+    <parent link="arm_link_1"/>
+    <child link="arm_link_2"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="50" velocity="1.0"/>
+  </joint>
+
+  <!-- Joint 3: elbow -->
+  <link name="arm_link_3">
+    <visual>
+      <origin xyz="0 0 0.12" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.02 0.24"/>
+      </geometry>
+    </visual>
+  </link>
+  <joint name="arm_joint_3" type="revolute">
+    <parent link="arm_link_2"/>
+    <child link="arm_link_3"/>
+    <origin xyz="0 0 0.24" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.0" upper="2.0" effort="40" velocity="1.0"/>
+  </joint>
+
+  <!-- Joint 4: wrist pitch -->
+  <link name="arm_link_4">
+    <visual>
+      <origin xyz="0 0 0.08" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.02 0.16"/>
+      </geometry>
+    </visual>
+  </link>
+  <joint name="arm_joint_4" type="revolute">
+    <parent link="arm_link_3"/>
+    <child link="arm_link_4"/>
+    <origin xyz="0 0 0.48" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="20" velocity="1.0"/>
+  </joint>
+
+  <!-- Joint 5: wrist roll (continuous) -->
+  <link name="arm_link_5"/>
+  <joint name="arm_joint_5" type="continuous">
+    <parent link="arm_link_4"/>
+    <child link="arm_link_5"/>
+    <origin xyz="0 0 0.64" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <!-- end effector -->
+  <link name="arm_ee_link">
+    <inertial>
+      <mass value="0.2"/>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <inertia ixx="0.0005" ixy="0" ixz="0" iyy="0.0005" iyz="0" izz="0.0005"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.03"/>
+      </geometry>
+    </visual>
+  </link>
+  <joint name="arm_ee_fixed" type="fixed">
+    <parent link="arm_link_5"/>
+    <child link="arm_ee_link"/>
+    <origin xyz="0 0 0.02" rpy="0 0 0"/>
+  </joint>
+
+  <!-- transmissions for arm joints (position controllers) -->
+  <transmission name="arm_joint_1_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="arm_joint_1"/>
+    <actuator name="arm_joint_1_motor"><hardwareInterface>position</hardwareInterface></actuator>
+  </transmission>
+  <transmission name="arm_joint_2_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="arm_joint_2"/>
+    <actuator name="arm_joint_2_motor"><hardwareInterface>position</hardwareInterface></actuator>
+  </transmission>
+  <transmission name="arm_joint_3_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="arm_joint_3"/>
+    <actuator name="arm_joint_3_motor"><hardwareInterface>position</hardwareInterface></actuator>
+  </transmission>
+  <transmission name="arm_joint_4_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="arm_joint_4"/>
+    <actuator name="arm_joint_4_motor"><hardwareInterface>position</hardwareInterface></actuator>
+  </transmission>
+  <transmission name="arm_joint_5_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="arm_joint_5"/>
+    <actuator name="arm_joint_5_motor"><hardwareInterface>position</hardwareInterface></actuator>
+  </transmission>
+
+
+  <!-- ============================================================= -->
+  <!-- Sensors: Kinect (rgbd), IMU, GPS (placeholders + gazebo plugins) -->
+  <!-- Put camera on front of rover, IMU on base_link, GPS as sensor on top -->
+  <!-- ============================================================= -->
+
+  <link name="camera_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.04 0.02"/>
+      </geometry>
+    </visual>
+  </link>
+  <joint name="front_to_camera" type="fixed">
+    <parent link="front_link"/>
+    <child link="camera_link"/>
+    <origin xyz="0.08 0 0.08" rpy="0 0 0"/>
+  </joint>
+
+  <!-- IMU link -->
+  <link name="imu_link"/>
+  <joint name="base_to_imu" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0.06" rpy="0 0 0"/>
+  </joint>
+
+  <!-- GPS link -->
+  <link name="gps_link"/>
+  <joint name="base_to_gps" type="fixed">
+    <parent link="base_link"/>
+    <child link="gps_link"/>
+    <origin xyz="0 0 0.16" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ============================================================= -->
+  <!-- Gazebo plugin and sensor tags -->
+  <!-- Note: These plugin tags are suitable for Gazebo simulation via gazebo_ros_pkgs -->
+  <!-- ============================================================= -->
+
+  <gazebo>
+    <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+      <robotNamespace>/</robotNamespace>
+    </plugin>
+  </gazebo>
+
+  <!-- IMU plugin on imu_link -->
+  <gazebo reference="imu_link">
+    <sensor type="imu" name="imu_sensor">
+      <update_rate>200.0</update_rate>
+      <plugin name="gazebo_ros_imu_sensor" filename="libgazebo_ros_imu_sensor.so">
+        <topicName>/imu/data</topicName>
+        <frameName>imu_link</frameName>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <!-- Kinect (RGBD) -- use gazebo_ros_openni_kinect or camera sensor plugin -->
+  <gazebo reference="camera_link">
+    <sensor type="camera" name="kinect_rgb">
+      <camera name="kinect_rgb">
+        <horizontal_fov>1.047</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>10.0</far>
+        </clip>
+      </camera>
+      <plugin name="gazebo_ros_camera" filename="libgazebo_ros_camera.so">
+        <alwaysOn>true</alwaysOn>
+        <update_rate>30.0</update_rate>
+        <cameraName>kinect</cameraName>
+        <imageTopicName>rgb/image_raw</imageTopicName>
+        <cameraInfoTopicName>rgb/camera_info</cameraInfoTopicName>
+        <depthImageTopicName>depth/image_raw</depthImageTopicName>
+        <pointCloudTopicName>points</pointCloudTopicName>
+        <frameName>camera_link</frameName>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <!-- GPS plugin on gps_link: gazebo_ros_gps_plugin or navsat_gazebo_plugin -->
+  <gazebo reference="gps_link">
+    <sensor type="gps" name="gps_sensor">
+      <plugin name="gazebo_ros_gps" filename="libgazebo_gps_plugin.so">
+        <topicName>/gps/fix</topicName>
+        <frameName>gps_link</frameName>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+
+  <!-- ============================================================= -->
+  <!-- Joint groups for convenience (optional)                        -->
+  <!-- ============================================================= -->
+  <!-- joint names listed for controllers.yaml mapping if needed -->
+
+  <!-- Wheels list
+       wheel_fl_hinge, wheel_fr_hinge, ml_wheel_hinge, mr_wheel_hinge, wheel_rl_hinge, wheel_rr_hinge
+  -->
+
+  <!-- Steering joints: fl_steer_joint, fr_steer_joint, rl_steer_joint, rr_steer_joint -->
+
+  <!-- Arm joints: arm_joint_1 .. arm_joint_5 -->
+
+</robot>

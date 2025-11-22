@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<robot name="six_wheel_rover" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:property name="wheel_radius" value="0.062"/>
+  <link name="base_link">
+    <inertial> ... </inertial>
+    <visual> ... mesh for base ... </visual>
+    <collision> ... </collision>
+  </link>
+
+  <!-- example front-left steering -->
+  <link name="steer_fl_link"/>
+  <joint name="steer_fl_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="steer_fl_link"/>
+    <origin xyz="0.35 0.3 0.05" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="wheel_fl_link"/>
+  <joint name="wheel_fl_hinge" type="continuous">
+    <parent link="steer_fl_link"/>
+    <child link="wheel_fl_link"/>
+    <origin xyz="0 0 -0.08" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- replicate for the other five wheels + steering for corners -->
+  <!-- Add 5-DOF arm as chain mounted at front_link -->
+  <xacro:include filename="$(find rover_description)/urdf/arm.urdf.xacro"/>
+</robot>

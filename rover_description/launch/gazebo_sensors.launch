@@ -1,0 +1,36 @@
+<launch>
+<!-- Ensure sim time -->
+<param name="use_sim_time" value="true" />
+
+
+<!-- Spawn robot if not already spawned by main bringup -->
+<arg name="spawn_robot" default="false"/>
+<arg name="robot_description_param" default="/robot_description"/>
+
+
+<group if="$(arg spawn_robot)">
+<node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" output="screen"
+args="-param $(arg robot_description_param) -urdf -model six_wheel_rover" />
+</group>
+
+
+<!-- Remap camera and depth topics to match RViz config -->
+<!-- The camera plugin in the URDF should already publish to these topics. If not, use remap or image_transport remapper here. -->
+
+
+<!-- Run depthimage_to_laserscan if you want a 2D scan derived from Kinect depth -->
+<node pkg="depthimage_to_laserscan" type="depthimage_to_laserscan_node" name="depth_to_scan" output="screen">
+<param name="output_frame" value="camera_link"/>
+<param name="range_min" value="0.5"/>
+<param name="range_max" value="8.0"/>
+<remap from="depth/image" to="/kinect/depth/image_raw"/>
+<remap from="depth/camera_info" to="/kinect/rgb/camera_info"/>
+<remap from="scan" to="/kinect/scan"/>
+</node>
+
+
+<!-- Publish a static TF from camera optical to camera_link if needed -->
+<node pkg="tf2_ros" type="static_transform_publisher" name="cam_optical_tf" args="0 0 0 0 0 0 camera_link camera_optical"/>
+
+
+</launch>

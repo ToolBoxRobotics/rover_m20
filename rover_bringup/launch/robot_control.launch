@@ -1,0 +1,89 @@
+<launch>
+  <!-- ===========================
+       Arguments / config
+       =========================== -->
+  <arg name="world" default="$(find gazebo_ros)/worlds/empty.world" />
+  <arg name="paused" default="false" />
+  <arg name="use_sim_time" default="true" />
+  <arg name="robot_description_xacro" default="$(find rover_description)/urdf/six_wheel_rover_with_arm.urdf.xacro" />
+  <arg name="controllers_yaml" default="$(find rover_control)/config/controllers.yaml" />
+  <arg name="rviz_config" default="$(find rover_description)/rviz/rover.rviz" />
+
+  <!-- make sure simulation time is used -->
+  <param name="use_sim_time" value="$(arg use_sim_time)" />
+
+  <!-- ===========================
+       Start Gazebo (empty world)
+       =========================== -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(arg world)" />
+    <arg name="paused" value="$(arg paused)" />
+  </include>
+
+  <!-- ==================================================
+       Load URDF into parameter server by processing XACRO
+       (robot_state_publisher and spawn_model will use this)
+       ================================================== -->
+  <param name="robot_description" command="$(find xacro)/xacro '$(arg robot_description_xacro)'" />
+
+  <!-- ================================
+       Spawn the robot into Gazebo
+       ================================ -->
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" output="screen"
+        args="-param robot_description -urdf -model six_wheel_rover" />
+
+  <!-- ================================
+       Start robot_state_publisher
+       ================================ -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen">
+    <!-- robot_state_publisher reads /robot_description param -->
+  </node>
+
+  <!-- Joint state broadcaster (if you prefer the controller-manager joint_state_controller,
+       we still spawn the joint_state_controller below via the spawner) -->
+  <!-- Optionally start joint_state_publisher_gui locally if you want to manipulate joint values manually:
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+  -->
+
+  <!-- ==================================================
+       Load controller configs (controllers.yaml) onto the param server
+       ================================================== -->
+  <rosparam file="$(arg controllers_yaml)" command="load" />
+
+  <!-- Wait a moment for controllers to be loaded by the controller manager -->
+  <!-- ==================================================================
+       Spawn controllers using controller_manager spawner.
+       We spawn joint_state_controller first then the rest.
+       Replace controller names below with the exact names used in your YAML.
+       ================================================================== -->
+
+  <!-- spawn joint_state_broadcaster / controller -->
+  <node name="spawn_joint_state_broadcaster" pkg="controller_manager" type="spawner" output="screen"
+        args="joint_state_broadcaster" />
+
+  <!-- Spawn wheel velocity controllers -->
+  <node name="spawn_wheels" pkg="controller_manager" type="spawner" output="screen"
+        args="wheel_front_left_velocity_controller wheel_front_right_velocity_controller wheel_middle_left_velocity_controller wheel_middle_right_velocity_controller wheel_rear_left_velocity_controller wheel_rear_right_velocity_controller" />
+
+  <!-- Spawn steering position controllers -->
+  <node name="spawn_steering" pkg="controller_manager" type="spawner" output="screen"
+        args="steer_front_left_position_controller steer_front_right_position_controller steer_rear_left_position_controller steer_rear_right_position_controller" />
+
+  <!-- Spawn arm position controllers -->
+  <node name="spawn_arm" pkg="controller_manager" type="spawner" output="screen"
+        args="arm_joint1_position_controller arm_joint2_position_controller arm_joint3_position_controller arm_joint4_position_controller arm_joint5_position_controller" />
+
+  <!-- ==================================================
+       Start RViz (optional)
+       ================================================== -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rviz_config)" required="false" output="screen" />
+
+  <!-- ==================================================
+       Helpful info printed to screen
+       ================================================== -->
+  <node pkg="roslaunch" type="arg" name="note" output="screen">
+    <rosparam>
+      /_rover_bringup: "robot_control.launch loaded. robot_description param set, model spawned, controllers started. Use `rosnode list` and `rostopic list` to inspect."
+    </rosparam>
+  </node>
+</launch>

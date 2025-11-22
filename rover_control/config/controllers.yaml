@@ -1,0 +1,27 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 50
+
+joint_state_controller:
+  type: joint_state_controller/JointStateController
+  publish_rate: 50
+
+# velocity controllers for 6 wheel joints
+wheel_velocity_controller:
+  type: velocity_controllers/JointGroupVelocityController
+  joints:
+    - wheel_fl_joint
+    - wheel_fr_joint
+    - wheel_ml_joint
+    - wheel_mr_joint
+    - wheel_rl_joint
+    - wheel_rr_joint
+
+# position controllers for steering servos
+steer_position_controller:
+  type: position_controllers/JointGroupPositionController
+  joints:
+    - steer_fl_joint
+    - steer_fr_joint
+    - steer_rl_joint
+    - steer_rr_joint
