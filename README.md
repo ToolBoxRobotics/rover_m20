@@ -41,3 +41,15 @@ ROS Noetic software layout for your six-wheeled, corner-steered rover + 5-axis a
 - Runs rosserial_python bridges
 - Runs rover_controller converting /cmd_vel -> wheel RPM + steering angles
 - Runs odom integrator
+
+
+## 1) Catkin workspace + packages
+
+#### On the Pi and PC, same workspace layout:
+
+  ~$ mkdir -p ~/catkin_ws/src
+  ~$ cd ~/catkin_ws/src
+  ~$ catkin_init_workspace
+
+
+
